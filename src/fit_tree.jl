@@ -157,11 +157,11 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
 
             # there needs to be positive gain then apply split to the tree
             # print(best_split_dict)
-            println(best_split_dict)
-            println("node to split is next line")
-            # println(typeof(node_to_split))
-            println(node_to_split)
-            println("mehmehmeh")
+            # println(best_split_dict)
+            # println("node to split is next line")
+            # # println(typeof(node_to_split))
+            # println(node_to_split)
+            # println("mehmehmeh")
             split_with_best_gain = best_split_dict[node_to_split]
 
             if split_with_best_gain.further_split && (split_with_best_gain.gain > 0)
