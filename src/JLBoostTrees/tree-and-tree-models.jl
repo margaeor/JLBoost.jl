@@ -61,6 +61,19 @@ end
 	jlt
 end
 
+function tree_diag_print(jlt)
+    if jlt.parent===nothing
+        parent_feature=nothing
+        parent_split=nothing
+        split_sign = ""
+    else
+        parent_feature=jlt.parent.splitfeature
+        parent_split=jlt.parent.split
+        split_sign = is_left_child(jlt) ? "<=" : ">"
+    end
+    jlt.splitfeature, jlt.split, parent_feature, split_sign, parent_split
+end
+
 
 """
 	show(io, jlt, ntabs; splitfeature="")
@@ -107,7 +120,8 @@ end
 Show a JLBoostTree or a Vector{JLBoostTree}
 """
 function show(io::IO, jlt::AbstractJLBoostTree)
-    show(io, jlt, 0)
+    #show(io, jlt, 0)
+    print(tree_diag_print(jlt))
 end
 
 function show(io::IO, ::MIME"text/plain", jlt::AbstractVector{T}) where T <: AbstractJLBoostTree

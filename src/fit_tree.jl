@@ -4,6 +4,15 @@ export fit_tree!, fit_tree
 using ...JLBoostTrees: is_left_child
 using Tables
 
+function viewtable(table, rows, cols)
+    t = Tables.columns(table)
+    v = map(cols) do c
+      col = Tables.getcolumn(t, c)
+      c => view(col, rows)
+    end
+    (; v...)
+  end
+
 function tree_diag_print(jlt)
     if jlt.parent===nothing
         parent_feature=nothing
@@ -58,6 +67,7 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
     @assert Tables.istable(tbl)
 
     tblc = Tables.columns(tbl)
+    dfo = DataFrame(tbl)
 
     @assert nrow(tblc) >= 2 # seriously? you have so few records
 
@@ -100,17 +110,22 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
                 warm_start_filtered = warm_start
             else
                 keeprow = keeprow_vec(tbl, leaf_node)
-                # tblc_filtered = view(tblc, keeprow, :)
-                println(typeof(keeprow))
-                tblc_filtered = tblc[keeprow, :]
-                # warm_start_filtered = view(warm_start, keeprow)
-                warm_start_filtered = warm_start[keeprow]
+                #tblc_filtered = view(tblc, keeprow, :)
+                tblc_filtered = Tables.columns(DataFrame(view(dfo, keeprow, :)))
+                #println("TYPE")
+                #println(typeof(tblc_filtered))
+                #print(keeprow)
+                #println(size(keeprow))
+                #println(typeof(tblc))
+                #tblc_filtered = tblc[keeprow, :]
+                warm_start_filtered = view(warm_start, keeprow)
+                #warm_start_filtered = warm_start[keeprow]
                 if sum(keeprow) <= 2
                     # no rows are kept, so move to next node
                     leaf_node.split = typemin(Float64)
                     leaf_node.splitfeature = Symbol("too few records for split")
                     leaf_node.gain = typemin(Float64)
-                    println("this branch has too few records $(leaf_node)")
+                    #println("this branch has too few records $(leaf_node)")
                     continue
                 else
                     # println("detective")
@@ -119,14 +134,15 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
             end
 
             # compute the gain for all splits for all features
-            split_with_best_gain =
-                find_best_split(loss, tblc_filtered, features[1], target, warm_start_filtered,
+            split_with_best_gain = find_best_split(loss, tblc_filtered, features[1], target, warm_start_filtered,
                                 lambda, gamma; verbose=verbose, kwargs...)
+            
 
             for feature in Iterators.drop(features, 1)
-                feature_split =
-                    find_best_split(loss, tblc_filtered, feature, target, warm_start_filtered,
+
+                feature_split =find_best_split(loss, tblc_filtered, feature, target, warm_start_filtered,
                                     lambda, gamma; verbose=verbose, kwargs...)
+
                 if feature_split.gain > split_with_best_gain.gain
                     split_with_best_gain = feature_split
                 end
@@ -142,6 +158,10 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
             leaf_node.splitfeature = split_with_best_gain.feature
             leaf_node.gain = split_with_best_gain.gain
 
+            key = collect(keys(best_split_dict))[1]
+            # println("Type is $(typeof(key))")
+            # println(key)
+            #println(typeof(key))
             # reset the best split
             split_with_best_gain = ()
         end
@@ -151,7 +171,13 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
         # the tree_growth function will return the list of
         # nodes_to_split = tree_growth(jlt)
         nodes_to_split::Vector{<:AbstractJLBoostTree} = tree_growth(jlt)
+        # println("Nodes to split")
+        # println.(nodes_to_split)
+        # println("Dict nodes")
+        # println.(keys(best_split_dict))
 
+        #@assert haskey(best_split_dict, nodes_to_split[1])
+        # println(best_split_dict)
         no_more_gains_to_found = true
         for node_to_split in nodes_to_split
 
@@ -160,8 +186,19 @@ function _fit_tree!(loss, tbl, target, features, warm_start,
             # println(best_split_dict)
             # println("node to split is next line")
             # # println(typeof(node_to_split))
-            # println(node_to_split)
+            
             # println("mehmehmeh")
+
+            if !haskey(best_split_dict, node_to_split)
+                if verbose
+                    println("Won't split on $(node_to_split)")
+                end
+                continue
+            else
+                if verbose
+                    println("Will split on $(node_to_split)") 
+                end
+            end
             split_with_best_gain = best_split_dict[node_to_split]
 
             if split_with_best_gain.further_split && (split_with_best_gain.gain > 0)
